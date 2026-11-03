@@ -3,7 +3,7 @@ FROM node:22-alpine
 WORKDIR /app
 COPY package.json ./
 COPY server ./server
-COPY index.html manifest.webmanifest sw.js ./
+COPY index.html manifest.webmanifest sw.js favicon.ico ./
 COPY css ./css
 COPY js ./js
 COPY icons ./icons

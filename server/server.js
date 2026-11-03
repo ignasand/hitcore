@@ -13,9 +13,9 @@ const A = require('./auth');
 const { demoData } = require('./seed');
 
 const ROOT = path.resolve(__dirname, '..');
-const STATIC = new Set(['index.html', 'manifest.webmanifest', 'sw.js']);
+const STATIC = new Set(['index.html', 'manifest.webmanifest', 'sw.js', 'favicon.ico']);
 const STATIC_DIRS = ['css/', 'js/', 'icons/'];
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json', '.json': 'application/json' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json', '.json': 'application/json', '.ico': 'image/x-icon' };
 const COOKIE = 'hc_session';
 const TTL = { remember: 30 * 864e5, session: 12 * 36e5 };
 
