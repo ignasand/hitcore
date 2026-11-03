@@ -120,24 +120,41 @@
     e.preventDefault();
     const f = e.target, btn = $('button[type=submit]', f);
     btn.disabled = true; btn.textContent = 'Signing in…'; $('#loginErr').textContent = '';
-    try { await Auth.login(f.username.value, f.password.value, f.remember.checked); f.password.value = ''; start(); }
+    try {
+      const u = await Auth.login(f.username.value, f.password.value, f.remember.checked); f.password.value = '';
+      if (relogin && Store.data && Store.user === u.u) { relogin = false; $('#login').hidden = true; $('#shell').hidden = false; Store.resumeAfterLogin(); toast('Signed in – syncing your changes'); }
+      else start(true);
+    }
     catch (err) { $('#loginErr').textContent = err.message; f.password.select(); }
     btn.disabled = false; btn.textContent = 'Sign In';
   };
   async function logout() {
-    if (!(await confirmBox('Sign out of HitCore?', 'Sign Out', false))) return;
+    const pending = Store.status.pending;
+    const ok = pending
+      ? await modal({ title: `${pending} change${pending > 1 ? 's are' : ' is'} not synced yet`, body: '<p class="small muted">Signing out now discards them. Connect to the internet first and wait for “All changes saved”.</p>', submit: 'Discard & Sign Out', danger: true })
+      : await confirmBox('Sign out of HitCore?', 'Sign Out', false);
+    if (!ok) return;
     if (timer.det) timer.reset();
-    Auth.logout(); me = null; history.replaceState(null, '', location.pathname); showLogin();
+    await Auth.logout(); Store.discardLocal(); me = null; relogin = false; history.replaceState(null, '', location.pathname); showLogin();
   }
   document.addEventListener('click', e => { if (e.target.closest('[data-logout]')) logout(); });
   $('#topAvatar').onclick = () => go('#/settings');
   $('#backBtn').onclick = () => history.length > 1 ? history.back() : go('#/sessions');
 
-  function start() {
-    me = Auth.current();
+  let relogin = false;
+  async function start(signedIn) {
+    me = signedIn ? Auth.current() : await Auth.restore();
     if (!me) return showLogin();
-    Store.load(me.u);
     $('#login').hidden = true; $('#shell').hidden = false;
+    $('#demoBar').hidden = Store.MODE !== 'demo';
+    view.innerHTML = `<div class="empty">${icon('repeat')}<div>Loading your data…</div></div>`;
+    try { await Store.init(me.u); }
+    catch (e) {
+      if (e.status === 401) { await Auth.logout(); return showLogin(); }
+      view.innerHTML = `<div class="empty">${icon('alert')}<div><b>Can’t load data</b><br>${esc(e.message)}</div><button class="btn primary" id="retry">Try Again</button></div>`;
+      $('#retry').onclick = () => start(); return;
+    }
+    renderSync(Store.status);
     $('#sideAvatar').textContent = $('#topAvatar').textContent = initials(me.name);
     $('#sideName').textContent = me.name; $('#sideRole').textContent = me.role;
     const links = NAV.map(([k, label, href]) => `<a href="${href}" data-nav="${k}">${icon(k)}<span>${label}</span></a>`).join('');
@@ -145,6 +162,28 @@
     timerApplySettings();
     if (!location.hash || location.hash === '#/' || location.hash === '#') location.hash = '#/sessions'; else route();
   }
+
+  const SYNC_TEXT = { demo: 'Demo · nothing is saved', saved: 'All changes saved', saving: 'Saving…', offline: 'Offline', error: 'Server unreachable · retrying', auth: 'Sign in to sync' };
+  function renderSync(st) {
+    const el = $('#sync'), dot = $('#syncDot'); if (!el) return;
+    const txt = SYNC_TEXT[st.state] + (st.pending && st.state !== 'saved' ? ` · ${st.pending} pending` : '');
+    el.className = 'sync s-' + st.state; el.innerHTML = `<span class="dot"></span>${txt}`; el.title = st.lastSync ? 'Last synced ' + ftime(st.lastSync) : txt;
+    dot.className = 'sync-dot s-' + st.state; dot.title = txt;
+  }
+  Store.on('status', renderSync);
+  Store.on('rejected', msg => toast(msg, 'error'));
+  Store.on('auth', () => {
+    if (!me) return;
+    relogin = true; showLogin();
+    $('#loginErr').textContent = `Your session expired. Sign in again – ${Store.status.pending || 'no'} unsynced change(s) are kept on this device.`;
+    $('#loginForm [name=username]').value = me.u;
+  });
+  // other coaches' changes: refresh when the app comes back to the foreground (never mid-run)
+  const busyView = () => /\/(run|edit)\//.test(location.hash);
+  Store.on('changed', () => { if (me && !busyView() && !$('#modal').open) route(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && me && Store.data) Store.refresh(); });
+  $('#sync').onclick = () => go('#/settings');
+  $('#syncDot').onclick = () => go('#/settings');
 
   // ======================================================================
   // router
@@ -218,7 +257,8 @@
         <div class="f">Participants ${checkList('shooterIds', shooters, sess ? sess.shooterIds : shooters.map(s => s.id))}</div>
         <div class="row"><input id="quickShooter" placeholder="Add a new participant"><button type="button" class="btn" id="quickShooterBtn">Add</button></div>
         <div class="f">Exercises ${checkList('exerciseIds', D.exercises, sess ? sess.exerciseIds : D.exercises.map(e => e.id))}</div>
-        <label class="f">Notes<textarea name="notes" placeholder="Goals, conditions…">${esc(sess?.notes || '')}</textarea></label>`,
+        <label class="f">Notes<textarea name="notes" placeholder="Goals, conditions…">${esc(sess?.notes || '')}</textarea></label>
+        ${sess ? `<div><button type="button" class="btn danger" id="delSess">Delete Session…</button></div>` : ''}`,
       onOpen: form => {
         const add = () => {
           const name = $('#quickShooter', form).value.trim(); if (!name) return;
@@ -228,6 +268,10 @@
           if (list) list.insertAdjacentHTML('beforeend', html); else $('#quickShooter', form).closest('.row').insertAdjacentHTML('beforebegin', `<div class="checklist">${html}</div>`);
           $('#quickShooter', form).value = '';
         };
+        $('#delSess', form) && ($('#delSess', form).onclick = async () => {
+          $('#modal').close();
+          if (await confirmBox(`Delete “${sess.name}” and its ${sess.runs.length} runs?`, 'Delete')) { Store.remove('sessions', sess.id); toast('Session deleted'); go('#/sessions'); }
+        });
         $('#quickShooterBtn', form).onclick = add;
         $('#quickShooter', form).onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
       },
@@ -289,15 +333,16 @@
     $('#addEx').onclick = async () => {
       const others = Store.data.exercises.filter(e => !sess.exerciseIds.includes(e.id));
       const v = await modal({ title: 'Add Exercises', submit: 'Add', body: `${checkList('ids', others, [])}<div class="small muted">Need a new drill? <a href="#/exercises" data-close>Create it in Exercises</a>.</div>` });
-      if (v && arr(v.ids).length) { sess.exerciseIds.push(...arr(v.ids)); sessUI[id] = arr(v.ids)[0]; Store.save(); viewSession(id); }
+      if (v && arr(v.ids).length) { Store.upsert('sessions', { id: sess.id, exerciseIds: [...sess.exerciseIds, ...arr(v.ids)] }); sessUI[id] = arr(v.ids)[0]; viewSession(id); }
     };
     $('#addSh') && ($('#addSh').onclick = async () => {
       const others = Store.data.shooters.filter(s => !sess.shooterIds.includes(s.id) && s.active !== false);
       const v = await modal({ title: 'Add Participants', submit: 'Add', body: `${checkList('ids', others, [])}<label class="f">New participant<input name="newName" placeholder="Full name"></label>` });
       if (!v) return;
-      sess.shooterIds.push(...arr(v.ids));
-      if (v.newName && v.newName.trim()) sess.shooterIds.push(Store.upsert('shooters', { name: v.newName.trim(), division: 'Production', pf: 'minor', active: true, notes: '' }).id);
-      Store.save(); viewSession(id);
+      const add = arr(v.ids);
+      if (v.newName && v.newName.trim()) add.push(Store.upsert('shooters', { name: v.newName.trim(), division: 'Production', pf: 'minor', active: true, notes: '' }).id);
+      if (add.length) Store.upsert('sessions', { id: sess.id, shooterIds: [...sess.shooterIds, ...add] });
+      viewSession(id);
     });
   }
 
@@ -631,7 +676,7 @@
         if (!ex) r.oninput = () => { q.value = r.value; };
         $('#delEx', form) && ($('#delEx', form).onclick = async () => {
           $('#modal').close();
-          if (await confirmBox(`Delete “${ex.name}”?`, 'Delete')) { Store.remove('exercises', ex.id); Store.data.sessions.forEach(s => s.exerciseIds = s.exerciseIds.filter(i => i !== ex.id)); Store.save(); route(); }
+          if (await confirmBox(`Delete “${ex.name}”?`, 'Delete')) { Store.remove('exercises', ex.id); route(); }
         });
       },
     });
@@ -670,7 +715,7 @@
       onOpen: form => {
         $('#delSh', form) && ($('#delSh', form).onclick = async () => {
           $('#modal').close();
-          if (await confirmBox(`Delete ${s.name}?`, 'Delete')) { Store.remove('shooters', s.id); Store.data.sessions.forEach(x => x.shooterIds = x.shooterIds.filter(i => i !== s.id)); Store.save(); route(); }
+          if (await confirmBox(`Delete ${s.name}?`, 'Delete')) { Store.remove('shooters', s.id); route(); }
         });
       },
     });
@@ -820,15 +865,24 @@
           <div class="seg" id="theme"><button data-t="system">System</button><button data-t="light">Light</button><button data-t="dark">Dark</button></div>
         </div>
         <div class="card">
-          <div class="card-h"><h2>Data</h2></div>
-          <p class="field-hint">Stored on this device for <b>${esc(me.u)}</b>. Back up after each session, or move data between devices with export / import.</p>
-          <div class="row wrap"><button class="btn" id="exp">${icon('download')} Back Up (JSON)</button><button class="btn" id="imp">Import Backup…</button><input type="file" id="impFile" accept="application/json,.json" hidden></div>
-          <div><button class="btn danger" id="reset">Reset to Demo Data…</button></div>
+          <div class="card-h"><h2>Data</h2><span class="sync s-${Store.status.state}" id="syncCard"><span class="dot"></span>${SYNC_TEXT[Store.status.state]}</span></div>
+          ${Store.MODE === 'api'
+            ? `<p class="field-hint">Results are saved to the HitCore server database. Changes made without a connection are kept on this device and sent automatically when it’s back.${Store.status.lastSync ? ' Last synced ' + ftime(Store.status.lastSync) + '.' : ''}</p>
+               <div class="row wrap"><button class="btn" id="syncNow">${icon('repeat')} Sync Now</button>${Store.status.pending ? `<span class="small muted">${Store.status.pending} change(s) waiting</span>` : ''}</div>`
+            : `<p class="field-hint">This is the public demo: data lives in memory only and is reset when the page reloads. Deploy the HitCore server for real, persistent storage.</p>`}
+          <div class="row wrap"><button class="btn" id="exp">${icon('download')} Export Backup (JSON)</button><button class="btn" id="imp">Import Backup…</button><input type="file" id="impFile" accept="application/json,.json" hidden></div>
+          ${Store.MODE === 'demo' ? `<div><button class="btn danger" id="reset">Reset Demo Data…</button></div>` : ''}
+          ${Store.legacyData().length ? `<div class="notice warn"><span class="ic">${icon('alert')} Data saved by an older version was found in this browser.</span><button class="btn sm" id="legacy">Download It</button></div>` : ''}
         </div>
         <div class="card">
           <div class="card-h"><h2>Account</h2></div>
-          <div class="row"><span class="avatar" style="cursor:default">${esc(initials(me.name))}</span><div class="grow"><div>${esc(me.name)}</div><div class="xs muted">${esc(me.role)} · ${esc(me.u)} · signed in ${ftime(me.since)}</div></div><button class="btn" data-logout>Sign Out</button></div>
+          <div class="row"><span class="avatar" style="cursor:default">${esc(initials(me.name))}</span><div class="grow"><div>${esc(me.name)}</div><div class="xs muted">${esc(me.role)} · ${esc(me.u)}${me.since ? ' · signed in ' + ftime(me.since) : ''}</div></div><button class="btn" data-logout>Sign Out</button></div>
+          ${Store.MODE === 'api' ? `<div><button class="btn" id="pwBtn">Change Password…</button></div>` : ''}
         </div>
+        ${Store.MODE === 'api' && me.admin ? `<div class="card tight">
+          <div class="card-h"><h2>Users</h2><div class="row"><button class="btn sm" id="auditBtn">Audit Log</button><button class="btn sm primary" id="addUser">${icon('plus')} Add User</button></div></div>
+          <div class="list" id="userList"><div class="empty">Loading…</div></div>
+        </div>` : ''}
       </div></div>`;
     $('#micBtn') && ($('#micBtn').onclick = async () => { try { await enableMic(); viewSettings(); } catch (e) { toast('Microphone unavailable: ' + (e.message || e.name), 'error'); } });
     $('#sens').oninput = e => { Store.setting('sensitivity', +e.target.value); $('#sensV').textContent = e.target.value; timerApplySettings(); $('#lvl .th').style.left = threshPos() + '%'; };
@@ -871,10 +925,38 @@
       try { Store.importJSON(JSON.parse(await f.text())); toast('Backup imported'); } catch (err) { toast('Import failed: ' + err.message, 'error'); }
       e.target.value = '';
     };
-    $('#reset').onclick = async () => { if (await confirmBox('Erase all data and restore the demo data?', 'Reset')) { Store.resetDemo(); toast('Demo data restored'); go('#/sessions'); } };
+    $('#reset') && ($('#reset').onclick = async () => { if (await confirmBox('Erase all data and restore the demo data?', 'Reset')) { Store.resetDemo(); toast('Demo data restored'); go('#/sessions'); } });
+    $('#syncNow') && ($('#syncNow').onclick = async () => { await Store.syncNow(); await Store.refresh(); toast(Store.status.state === 'saved' ? 'Everything is synced' : 'Still offline – will keep retrying', Store.status.state === 'saved' ? '' : 'error'); });
+    $('#legacy') && ($('#legacy').onclick = () => Store.legacyData().forEach(x => download(`hitcore-${x.key.replace(/\W+/g, '-')}.json`, JSON.stringify({ version: 2, settings: {}, shooters: [], exercises: [], ...x.data }, null, 1), 'application/json')));
+    $('#pwBtn') && ($('#pwBtn').onclick = async () => {
+      await modal({ title: 'Change Password', submit: 'Change', body: `<label class="f">Current password<input name="cur" type="password" autocomplete="current-password" required></label>
+        <label class="f">New password<input name="next" type="password" autocomplete="new-password" minlength="8" required></label><p class="field-hint">At least 8 characters. You’ll be signed out on all devices.</p><div class="err small bad" id="pwErr"></div>`,
+        onSubmit: (v, form) => { Auth.changePassword(v.cur, v.next).then(async () => { $('#modal').close(); toast('Password changed – please sign in again'); await Auth.logout(); me = null; showLogin(); }).catch(e => { $('#pwErr', form).textContent = e.message; }); return false; } });
+    });
+    if ($('#userList')) {
+      const loadUsers = async () => {
+        try {
+          const { users } = await Store.request('GET', 'api/admin/users');
+          $('#userList').innerHTML = users.map(u => `<div class="item"><span class="avatar" style="cursor:default">${esc(initials(u.name))}</span><div class="grow"><div class="t">${esc(u.name)} ${u.disabled ? '<span class="badge">Disabled</span>' : ''}</div><div class="s">${esc(u.username)} · ${u.role === 'admin' ? 'Administrator' : 'Coach'}</div></div>
+            ${u.username === me.u ? '<span class="xs faint">you</span>' : `<button class="btn sm" data-dis="${u.id}" data-on="${u.disabled ? 0 : 1}">${u.disabled ? 'Enable' : 'Disable'}</button>`}</div>`).join('');
+          $$('[data-dis]').forEach(b => b.onclick = async () => { try { await Store.request('POST', `api/admin/users/${b.dataset.dis}/disable`, { disabled: b.dataset.on === '1' }); loadUsers(); } catch (e) { toast(e.message, 'error'); } });
+        } catch (e) { $('#userList').innerHTML = `<div class="empty">${esc(e.status ? e.message : 'Offline – user management needs a connection.')}</div>`; }
+      };
+      loadUsers();
+      $('#addUser').onclick = () => modal({ title: 'Add User', submit: 'Create', body: `<label class="f">Full name<input name="name" required></label><label class="f">Username<input name="username" autocapitalize="none" required pattern="[A-Za-z0-9._-]{2,40}"></label>
+          <label class="f">Initial password<input name="password" type="password" autocomplete="new-password" minlength="8" required></label><label class="f">Role<select name="role"><option value="coach">Coach</option><option value="admin">Administrator</option></select></label><div class="err small bad" id="uErr"></div>`,
+        onSubmit: (v, form) => { Store.request('POST', 'api/admin/users', v).then(() => { $('#modal').close(); toast('User created'); loadUsers(); }).catch(e => { $('#uErr', form).textContent = e.message; }); return false; } });
+      $('#auditBtn').onclick = async () => {
+        try {
+          const { entries } = await Store.request('GET', 'api/admin/audit');
+          modal({ title: 'Audit Log', submit: 'Close', cancel: null, body: `<div class="tablewrap" style="max-height:60vh"><table><thead><tr><th class="l">When</th><th class="l">User</th><th class="l">Action</th><th class="l">Entity</th></tr></thead><tbody>${entries.map(e => `<tr><td class="l">${ftime(e.at)}</td><td class="l">${esc(e.username || '')}</td><td class="l">${esc(e.action)}</td><td class="l">${esc(e.entity)}</td></tr>`).join('')}</tbody></table></div>` });
+        } catch (e) { toast(e.message, 'error'); }
+      };
+    }
   }
 
   // ======================================================================
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  $('#loginFoot').textContent = Store.MODE === 'demo' ? 'Public demo · sample data, nothing is saved' : 'Secure sign-in · your club’s HitCore server';
   start();
 })();

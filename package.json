@@ -1,9 +1,13 @@
 {
   "name": "hitcore",
+  "version": "1.0.0",
   "private": true,
-  "description": "IPSC hit factor calculator, microphone shot timer and training logger (PWA)",
+  "description": "IPSC training logger, microphone shot timer and hit factor reports",
+  "engines": { "node": ">=22.13" },
   "scripts": {
-    "test": "node --test tests/*.test.js",
-    "start": "python3 -m http.server 8080"
+    "start": "node --disable-warning=ExperimentalWarning server/server.js",
+    "manage": "node --disable-warning=ExperimentalWarning server/manage.js",
+    "demo": "python3 -m http.server 8080",
+    "test": "node --disable-warning=ExperimentalWarning --test tests/*.test.js"
   }
 }

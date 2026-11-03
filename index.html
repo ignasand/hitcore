@@ -33,7 +33,7 @@
     <label class="check"><input type="checkbox" name="remember" checked> Keep me signed in</label>
     <div class="err" id="loginErr" role="alert"></div>
     <button class="btn primary lg block" type="submit">Sign In</button>
-    <p class="foot">Demo environment · data stays on this device</p>
+    <p class="foot" id="loginFoot"></p>
   </form>
 </section>
 
@@ -43,6 +43,7 @@
     <div class="logo"><span class="mark"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg></span>HitCore</div>
     <div class="sect">Workspace</div>
     <nav id="sidenav"></nav>
+    <button class="sync" id="sync" type="button"></button>
     <div class="user">
       <div class="avatar" id="sideAvatar"></div>
       <div class="grow"><div class="small" id="sideName"></div><div class="xs muted" id="sideRole"></div></div>
@@ -50,10 +51,11 @@
     </div>
   </aside>
   <div class="maincol">
+    <div class="demo-bar" id="demoBar" hidden>Demo mode · sample data · changes are not saved and reset when you reload</div>
     <header class="topbar">
       <div class="slot"><button class="iconbtn" id="backBtn" hidden aria-label="Back"><svg class="i" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M15 18l-6-6 6-6"/></svg><span id="backLabel">Back</span></button></div>
       <div class="title" id="viewTitle">HitCore</div>
-      <div class="slot r"><button class="avatar" id="topAvatar" aria-label="Account"></button></div>
+      <div class="slot r"><button class="sync-dot" id="syncDot" type="button" aria-label="Sync status"></button><button class="avatar" id="topAvatar" aria-label="Account"></button></div>
     </header>
     <main id="view"></main>
   </div>
@@ -64,6 +66,7 @@
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <div id="tip" class="chart-tip" hidden></div>
 
+<script src="config.js"></script>
 <script src="js/calc.js"></script>
 <script src="js/reports.js"></script>
 <script src="js/auth.js"></script>
