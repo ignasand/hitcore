@@ -41,3 +41,24 @@ test('shooter report summarises progress per exercise', () => {
   const x = rep.exercises[0];
   assert.strictEqual(x.bestHF, 10); assert.strictEqual(x.attempts, 2); assert.strictEqual(x.bestTime, 2);
 });
+
+test('split grading: fixed targets, pause detection, personal baseline', () => {
+  const g = Reports.gradeSplits([1.1, 1.3, 1.65, 2.2, 3.4, 3.62]);
+  assert.deepStrictEqual(g.map(x => x.grade), ['fast', 'fast', 'ok', 'slow', 'pause', 'fast']);
+  assert.strictEqual(g[0].kind, 'draw');
+  const sum = Reports.splitSummary(g);
+  assert.deepStrictEqual(sum.counts, { fast: 2, ok: 1, slow: 1, pause: 1 });
+  assert.ok(Math.abs(sum.best - 0.2) < 1e-9);
+  // personal baseline: median split 0.30 -> 0.25 is fast, 0.30 ok, 0.40 slow
+  const p = Reports.gradeSplits([1.0, 1.25, 1.55, 1.95], {}, { draw: 1.0, split: 0.30 });
+  assert.deepStrictEqual(p.map(x => x.grade), ['ok', 'fast', 'ok', 'slow']);
+});
+
+test('baseline needs history and ignores pauses', () => {
+  const runs = [[1.2, 1.5, 1.8, 3.0, 3.3], [1.0, 1.25, 1.5, 1.75]].map((splits, i) => run('a', 'x', splits[splits.length - 1], 4, 0, { id: 'r' + i, splits }));
+  const st = { data: { sessions: [{ runs }] } };
+  const b = Reports.baseline(st, 'a', 'x');
+  assert.strictEqual(b.runs, 2); assert.strictEqual(b.draw, 1.1);
+  assert.ok(Math.abs(b.split - 0.25) < 0.051);
+  assert.strictEqual(Reports.baseline(st, 'a', 'x', 'r0'), null);
+});

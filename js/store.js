@@ -4,14 +4,15 @@ const Store = (() => {
   let user = null, data = null;
   const key = () => 'hitcore.data.' + user;
 
-  const DEFAULT_SETTINGS = { beepSig: null, beepCount: 0, sensitivity: 55, firstShotStart: false, delayMin: 1, delayMax: 4, overtimeSec: 2.5 };
+  const DEFAULT_SETTINGS = { beepSig: null, beepCount: 0, sensitivity: 55, firstShotStart: false, delayMin: 1, delayMax: 4, overtimeSec: 2.5,
+    grade: { mode: 'targets', drawFast: 1.2, drawOk: 1.6, splitFast: 0.25, splitOk: 0.40, pause: 0.9 } };
   const blank = () => ({ version: 2, shooters: [], exercises: [], sessions: [], settings: { ...DEFAULT_SETTINGS } });
 
   function load(u) {
     user = u;
     try { data = JSON.parse(localStorage.getItem(key())); } catch (e) { data = null; }
     if (!data || data.version !== 2) { data = blank(); seed(data); migrateV1(data); save(); }
-    data.settings = { ...DEFAULT_SETTINGS, ...data.settings };
+    data.settings = { ...DEFAULT_SETTINGS, ...data.settings, grade: { ...DEFAULT_SETTINGS.grade, ...(data.settings || {}).grade } };
     return data;
   }
   function save() { try { localStorage.setItem(key(), JSON.stringify(data)); } catch (e) { console.warn('save failed', e); } }

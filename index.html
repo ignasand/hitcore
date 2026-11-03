@@ -5,14 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>HitCore</title>
 <meta name="description" content="IPSC training logger, shot timer and hit factor reports">
-<meta name="theme-color" content="#0f1117">
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161618" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="HitCore">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" href="icons/icon-192.png">
+<script>
+  // apply the saved appearance before first paint (no flash)
+  try { var t = localStorage.getItem('hitcore.theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -20,36 +25,35 @@
 <!-- Sign-in -->
 <section id="login" class="login" hidden>
   <form class="login-card" id="loginForm" autocomplete="on">
-    <div class="logo"><span class="mark">◎</span>HitCore</div>
-    <div>
-      <h1>Sign in</h1>
-      <p class="muted small">IPSC training logger &amp; shot timer</p>
-    </div>
-    <label class="f">Username<input name="username" autocomplete="username" autocapitalize="none" required></label>
+    <div class="logo"><span class="mark"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg></span><span class="name">HitCore</span></div>
+    <h1>Sign in to HitCore</h1>
+    <p class="lead">IPSC training logger &amp; shot timer</p>
+    <label class="f">Username<input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
     <label class="f">Password<input name="password" type="password" autocomplete="current-password" required></label>
-    <label class="check"><input type="checkbox" name="remember" checked> Keep me signed in on this device</label>
-    <div class="err" id="loginErr"></div>
-    <button class="btn primary lg block" type="submit">Sign in</button>
-    <p class="muted xs">Demo environment · data is stored on this device only</p>
+    <label class="check"><input type="checkbox" name="remember" checked> Keep me signed in</label>
+    <div class="err" id="loginErr" role="alert"></div>
+    <button class="btn primary lg block" type="submit">Sign In</button>
+    <p class="foot">Demo environment · data stays on this device</p>
   </form>
 </section>
 
 <!-- App -->
 <div id="shell" class="shell" hidden>
   <aside class="sidenav">
-    <div class="logo"><span class="mark">◎</span>HitCore</div>
+    <div class="logo"><span class="mark"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg></span>HitCore</div>
+    <div class="sect">Workspace</div>
     <nav id="sidenav"></nav>
     <div class="user">
       <div class="avatar" id="sideAvatar"></div>
       <div class="grow"><div class="small" id="sideName"></div><div class="xs muted" id="sideRole"></div></div>
-      <button class="iconbtn" data-logout title="Sign out"><svg class="i" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l-5-5 5-5M5 12h12"/></svg></button>
+      <button class="iconbtn" data-logout title="Sign out" aria-label="Sign out"><svg class="i" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l-5-5 5-5M5 12h12"/></svg></button>
     </div>
   </aside>
   <div class="maincol">
     <header class="topbar">
-      <button class="iconbtn" id="backBtn" hidden title="Back"><svg class="i" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <div class="slot"><button class="iconbtn" id="backBtn" hidden aria-label="Back"><svg class="i" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M15 18l-6-6 6-6"/></svg><span id="backLabel">Back</span></button></div>
       <div class="title" id="viewTitle">HitCore</div>
-      <div class="avatar brand-sm" id="topAvatar" title="Account"></div>
+      <div class="slot r"><button class="avatar" id="topAvatar" aria-label="Account"></button></div>
     </header>
     <main id="view"></main>
   </div>
@@ -57,7 +61,8 @@
 </div>
 
 <dialog id="modal"><form method="dialog" id="modalForm"></form></dialog>
-<div id="toast" class="toast"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="tip" class="chart-tip" hidden></div>
 
 <script src="js/calc.js"></script>
 <script src="js/reports.js"></script>

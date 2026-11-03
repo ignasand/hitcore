@@ -75,7 +75,43 @@ const Reports = (() => {
     return { rows, exercises, sessions: new Set(rows.map(x => x.sess.id)).size };
   }
 
-  return { runStats, session, shooter, maxPoints, mean };
+  // ---------- split grading ----------
+  // Grades: fast | ok | slow, plus 'pause' for long gaps (reload / movement) which
+  // are graded neutrally instead of being punished as slow splits.
+  const GRADE_DEFAULTS = { drawFast: 1.2, drawOk: 1.6, splitFast: 0.25, splitOk: 0.40, pause: 0.9 };
+  const median = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+
+  // Personal reference: median draw / median split of the shooter's earlier runs in the same exercise.
+  function baseline(store, shooterId, exerciseId, excludeRunId, pause = GRADE_DEFAULTS.pause) {
+    const draws = [], splits = [];
+    store.data.sessions.forEach(s => s.runs.forEach(r => {
+      if (r.shooterId !== shooterId || r.exerciseId !== exerciseId || r.id === excludeRunId || !(r.splits && r.splits.length)) return;
+      draws.push(r.splits[0]);
+      for (let i = 1; i < r.splits.length; i++) { const d = r.splits[i] - r.splits[i - 1]; if (d < pause) splits.push(d); }
+    }));
+    return draws.length >= 2 && splits.length >= 3 ? { draw: median(draws), split: median(splits), runs: draws.length } : null;
+  }
+
+  function gradeSplits(shots, cfg = {}, base = null) {
+    const c = { ...GRADE_DEFAULTS, ...cfg };
+    const lim = base
+      ? { drawFast: base.draw * 0.92, drawOk: base.draw * 1.08, splitFast: base.split * 0.92, splitOk: base.split * 1.08 }
+      : c;
+    return shots.map((t, i) => {
+      if (i === 0) return { i, t, split: t, kind: 'draw', grade: t <= lim.drawFast ? 'fast' : t <= lim.drawOk ? 'ok' : 'slow' };
+      const d = t - shots[i - 1];
+      if (d >= c.pause) return { i, t, split: d, kind: 'split', grade: 'pause' };
+      return { i, t, split: d, kind: 'split', grade: d <= lim.splitFast ? 'fast' : d <= lim.splitOk ? 'ok' : 'slow' };
+    });
+  }
+  function splitSummary(graded) {
+    const sp = graded.filter(g => g.kind === 'split' && g.grade !== 'pause').map(g => g.split);
+    const n = { fast: 0, ok: 0, slow: 0, pause: 0 };
+    graded.forEach(g => { if (g.kind === 'split') n[g.grade]++; });
+    return { draw: graded[0]?.split ?? null, avg: mean(sp), best: sp.length ? Math.min(...sp) : null, counts: n, fastShare: sp.length ? n.fast / sp.length : null };
+  }
+
+  return { runStats, session, shooter, maxPoints, mean, median, baseline, gradeSplits, splitSummary, GRADE_DEFAULTS };
 })();
 
 if (typeof module !== 'undefined') module.exports = { Reports };
