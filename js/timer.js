@@ -197,7 +197,6 @@ class ShotTimer {
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.9, t + 0.005);
     g.gain.setValueAtTime(0.9, t + 0.3); g.gain.linearRampToValueAtTime(0, t + 0.31);
     o.connect(g); g.connect(this.ctx.destination); o.start(t); o.stop(t + 0.35);
-    this.emit('state', 'armed');
     // Fallback if the mic doesn't pick up our own speaker (e.g. headphones)
     this.fallback = setTimeout(() => {
       if (this.det.mode === 'armed') { const s = this.det.total; this.det.mode = 'running'; this.det.lastShot = s; this.det.onBeep(s, f); }

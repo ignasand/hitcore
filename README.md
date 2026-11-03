@@ -1,19 +1,32 @@
 # HitCore
 
-IPSC hit-factor calculator, microphone shot timer and training logger. It's a plain-JS PWA with no build step, and it runs on iPhone (Safari / Home Screen) and on laptops.
+IPSC training logger with a microphone shot timer, hit-factor scoring and reports. It's a plain-JS PWA with no build step and runs on iPhone and laptops.
+
+Live demo: https://ignasand.github.io/hitcore/ (sign-in required; ask the project owner for the demo account).
 
 ## Features
 
-- **Score**: Alpha / Charlie / Delta / Miss / No-shoot / Procedural counters, Minor/Major power factor, time, and live points, penalties, score and **hit factor** (Comstock).
-- **Timer**: listens through the microphone and records the beep, every shot, splits and total time. Timing is sample-accurate.
-  - **Learn coach beep**: press *Learn*, then trigger the coach's timer. The app stores the beep's frequency and length, and *Arm* starts the clock on that beep only. Learning again averages the result. A different timer (frequency more than 150 Hz away) replaces the stored one.
-  - With no beep learned, it accepts any steady tone between 1.5 and 4.5 kHz.
-  - *Own beep*: the phone plays a beep after a random delay that you set.
-  - Optional: start the clock on the first shot.
-  - Sensitivity slider, with the threshold marked on the level meter. Tap a split to remove a false shot (echo or the next bay).
-  - *Use time → Score* copies the total time and splits into the calculator.
-- **Log**: training sessions with participants. Each run saves shooter, exercise, hits, time, HF and splits. You can view it as a timeline, by shooter (average and best HF) or by exercise (ranking and % of top HF). Export CSV, and back up or import JSON. On iPhone this opens the share sheet.
-- Works offline (service worker). Data stays on the device (localStorage).
+- **Sign-in.** A demo account protects the app, and each user gets their own data.
+- **Training sessions.** Each session has a date, location, notes, participants and exercises.
+- **Exercise library.** An exercise has a name, a round count (shots the counter waits for), required scoring hits and a setup description. Max stage points = 5 × required hits.
+- **Shooter roster.** Division, default power factor, notes, and an active/inactive flag.
+- **Live run.** Pick an exercise and press *Start* (or *Repeat*) for a shooter.
+  1. The clock starts on the coach's beep (learned in Settings), or on the phone's own beep after a random delay.
+  2. The microphone counts shots against the exercise's round count, e.g. `7 / 16`.
+  3. When the count is reached, scoring opens automatically with the time already filled in. The app keeps listening for a few seconds, so make-up shots are still caught.
+  4. Fill in A / C / D / M / NS / P. The app checks hits against required hits and offers to set the missing hits as misses.
+  5. *Save & next shooter*, *Save & repeat*, or *Discard*.
+- **Everything can be corrected.** Total time, each shot time (tap to edit), removing echoes, adding missed shots, hits, power factor and notes. Saved runs can be edited later, and every change is recorded with who changed it and when.
+- **Reports.**
+  - Session report: overall standings in IPSC stage points (best attempt per exercise), a ranking per exercise, accuracy, draw and split stats.
+  - Shooter progress report: per-exercise trend and run history.
+  - Print / PDF and CSV export.
+- **Settings.** Mic sensitivity with a level meter, beep learning, first-shot start, own-beep delay, listening time after the last expected shot, JSON backup/import, and reset to demo data.
+
+## Notes
+
+- Sign-in is a client-side gate for the demo. A static site can't keep secrets, so a production rollout needs a backend with a real identity provider, plus shared storage if several coaches need the same data.
+- Data stays on the device (localStorage). Use backup/import to move it between devices.
 
 ## Run locally
 
@@ -21,13 +34,7 @@ IPSC hit-factor calculator, microphone shot timer and training logger. It's a pl
 python3 -m http.server 8080
 ```
 
-Open http://localhost:8080. The microphone needs `localhost` or HTTPS.
-
-## Use on iPhone
-
-Live at https://ignasand.github.io/hitcore/ (GitHub Pages, deployed from the branch root on every push). Open it in Safari, then Share → *Add to Home Screen*. Allow microphone access when asked.
-
-Tips: keep the phone 1–3 m from the shooter, learn the beep at the range, and turn the sensitivity down if shots from other bays are being counted.
+Then open http://localhost:8080. The microphone needs `localhost` or HTTPS.
 
 ## Tests
 
@@ -35,4 +42,4 @@ Tips: keep the phone 1–3 m from the shooter, learn the beep at the range, and 
 npm test
 ```
 
-The detector is tested on synthetic audio (beep onset and shot times to within 3 ms, beep learning, first-shot start), along with the IPSC scoring.
+The tests cover the detector on synthetic audio, IPSC scoring and the report calculations.

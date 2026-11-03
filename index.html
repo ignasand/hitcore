@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>HitCore</title>
-<meta name="description" content="IPSC hit factor calculator, shot timer and training logger">
-<meta name="theme-color" content="#12141a">
+<meta name="description" content="IPSC training logger, shot timer and hit factor reports">
+<meta name="theme-color" content="#0f1117">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -17,174 +17,51 @@
 </head>
 <body>
 
-<header class="topbar">
-  <div class="brand">HitCore</div>
-  <button id="sessionBtn" class="session-pill" title="Change training session">No session</button>
-</header>
-
-<main id="main">
-
-<!-- ========== CALCULATOR ========== -->
-<section id="view-calc" class="view active">
-  <div class="card">
-    <div class="row">
-      <label class="field grow">
-        <span>Shooter</span>
-        <select id="runShooter"></select>
-      </label>
-      <label class="field grow">
-        <span>Exercise</span>
-        <input id="runExercise" list="exerciseList" placeholder="e.g. El Presidente" autocomplete="off">
-        <datalist id="exerciseList"></datalist>
-      </label>
+<!-- Sign-in -->
+<section id="login" class="login" hidden>
+  <form class="login-card" id="loginForm" autocomplete="on">
+    <div class="logo"><span class="mark">◎</span>HitCore</div>
+    <div>
+      <h1>Sign in</h1>
+      <p class="muted small">IPSC training logger &amp; shot timer</p>
     </div>
-    <div class="row">
-      <div class="seg" id="pfSeg">
-        <button data-pf="minor" class="on">Minor</button>
-        <button data-pf="major">Major</button>
-      </div>
-      <label class="field grow">
-        <span>Time (s)</span>
-        <input id="runTime" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
-      </label>
-    </div>
-  </div>
-
-  <div class="card counters">
-    <div class="counter" data-key="A"><div class="cname">Alpha</div><button class="dec">−</button><div class="cval">0</div><button class="inc">+</button></div>
-    <div class="counter" data-key="C"><div class="cname">Charlie</div><button class="dec">−</button><div class="cval">0</div><button class="inc">+</button></div>
-    <div class="counter" data-key="D"><div class="cname">Delta</div><button class="dec">−</button><div class="cval">0</div><button class="inc">+</button></div>
-    <div class="counter bad" data-key="M"><div class="cname">Miss</div><button class="dec">−</button><div class="cval">0</div><button class="inc">+</button></div>
-    <div class="counter bad" data-key="NS"><div class="cname">No-shoot</div><button class="dec">−</button><div class="cval">0</div><button class="inc">+</button></div>
-    <div class="counter bad" data-key="P"><div class="cname">Procedural</div><button class="dec">−</button><div class="cval">0</div><button class="inc">+</button></div>
-  </div>
-
-  <div class="card result">
-    <div class="stat"><span class="k">Hits</span><span id="rHits" class="v">0</span></div>
-    <div class="stat"><span class="k">Points</span><span id="rPoints" class="v">0</span></div>
-    <div class="stat"><span class="k">Penalty</span><span id="rPen" class="v">0</span></div>
-    <div class="stat"><span class="k">Score</span><span id="rScore" class="v">0</span></div>
-    <div class="stat big"><span class="k">Hit factor</span><span id="rHF" class="v">—</span></div>
-  </div>
-
-  <div class="row">
-    <button id="clearRun" class="btn ghost">Clear</button>
-    <button id="saveRun" class="btn primary grow">Save run to log</button>
-  </div>
-  <div id="calcSplits" class="muted small"></div>
-</section>
-
-<!-- ========== TIMER ========== -->
-<section id="view-timer" class="view">
-  <div class="card timer-display">
-    <div id="tStatus" class="tstatus">Mic off</div>
-    <div id="tTime" class="ttime">0.00</div>
-    <div class="trow">
-      <div><span class="k">Shots</span><span id="tShots">0</span></div>
-      <div><span class="k">First</span><span id="tFirst">—</span></div>
-      <div><span class="k">Last split</span><span id="tSplit">—</span></div>
-    </div>
-    <div class="level"><div id="levelBar"></div><div id="threshLine"></div></div>
-  </div>
-
-  <div class="row">
-    <button id="micBtn" class="btn grow">Enable mic</button>
-    <button id="armBtn" class="btn primary grow" disabled>Arm · wait beep</button>
-  </div>
-  <div class="row">
-    <button id="goBtn" class="btn grow" disabled>Own beep</button>
-    <button id="stopBtn" class="btn danger grow" disabled>Stop</button>
-  </div>
-  <div class="row">
-    <button id="useTimeBtn" class="btn ghost grow" disabled>Use time → Score</button>
-    <button id="resetTimerBtn" class="btn ghost">Reset</button>
-  </div>
-
-  <div class="card">
-    <div class="row between"><strong>Splits</strong><span class="muted small">tap a shot to remove it</span></div>
-    <ol id="splitList" class="splits"></ol>
-  </div>
-  <div class="card">
-    <div class="row between">
-      <strong>Coach beep</strong>
-      <span id="beepStatus" class="muted small">not learned</span>
-    </div>
-    <p class="muted small">Press <em>Learn</em>, then trigger the coach's timer once. The next loud sound is stored as the beep signature so the clock starts on that beep instead of a shot. Learn it a few times for robustness.</p>
-    <div class="row">
-      <button id="learnBeepBtn" class="btn grow" disabled>Learn beep</button>
-      <button id="forgetBeepBtn" class="btn ghost">Forget</button>
-    </div>
-    <label class="field">
-      <span>Sensitivity <span id="sensVal"></span></span>
-      <input id="sensitivity" type="range" min="1" max="100" value="55">
-    </label>
-    <label class="check"><input id="firstShotStart" type="checkbox"> Start clock on first shot if no beep is detected</label>
-    <label class="field">
-      <span>Random start delay (s)</span>
-      <div class="row"><input id="delayMin" type="number" inputmode="decimal" step="0.5" value="1" min="0"> <span>to</span> <input id="delayMax" type="number" inputmode="decimal" step="0.5" value="4" min="0"></div>
-    </label>
-  </div>
-
-</section>
-
-<!-- ========== LOG ========== -->
-<section id="view-log" class="view">
-  <div class="card">
-    <div class="row between">
-      <div>
-        <div id="logSessionName" class="h2">No session</div>
-        <div id="logSessionDate" class="muted small"></div>
-      </div>
-      <button id="newSessionBtn" class="btn small">New session</button>
-    </div>
-    <div class="row wrap" id="participantChips"></div>
-    <div class="row">
-      <input id="newParticipant" placeholder="Add participant" autocomplete="off">
-      <button id="addParticipantBtn" class="btn">Add</button>
-    </div>
-  </div>
-
-  <div class="row">
-    <div class="seg grow" id="logMode">
-      <button data-mode="time" class="on">Timeline</button>
-      <button data-mode="shooter">By shooter</button>
-      <button data-mode="exercise">By exercise</button>
-    </div>
-  </div>
-  <div id="logBody"></div>
-
-  <div class="row">
-    <button id="exportCsvBtn" class="btn ghost grow">CSV</button>
-    <button id="exportJsonBtn" class="btn ghost grow">Backup</button>
-    <button id="importJsonBtn" class="btn ghost">Import</button>
-    <input id="importFile" type="file" accept="application/json" hidden>
-  </div>
-</section>
-
-</main>
-
-<nav class="tabs">
-  <button data-view="calc" class="on"><span class="ico">⌗</span>Score</button>
-  <button data-view="timer"><span class="ico">◉</span>Timer</button>
-  <button data-view="log"><span class="ico">≡</span>Log</button>
-</nav>
-
-<!-- Session picker dialog -->
-<dialog id="sessionDlg">
-  <form method="dialog">
-    <h3>Training sessions</h3>
-    <ul id="sessionList" class="plain"></ul>
-    <div class="row">
-      <input id="sessionName" placeholder="New session name" autocomplete="off">
-      <button id="createSession" value="create" class="btn primary">Create</button>
-    </div>
-    <div class="row end"><button value="close" class="btn ghost">Close</button></div>
+    <label class="f">Username<input name="username" autocomplete="username" autocapitalize="none" required></label>
+    <label class="f">Password<input name="password" type="password" autocomplete="current-password" required></label>
+    <label class="check"><input type="checkbox" name="remember" checked> Keep me signed in on this device</label>
+    <div class="err" id="loginErr"></div>
+    <button class="btn primary lg block" type="submit">Sign in</button>
+    <p class="muted xs">Demo environment · data is stored on this device only</p>
   </form>
-</dialog>
+</section>
 
+<!-- App -->
+<div id="shell" class="shell" hidden>
+  <aside class="sidenav">
+    <div class="logo"><span class="mark">◎</span>HitCore</div>
+    <nav id="sidenav"></nav>
+    <div class="user">
+      <div class="avatar" id="sideAvatar"></div>
+      <div class="grow"><div class="small" id="sideName"></div><div class="xs muted" id="sideRole"></div></div>
+      <button class="iconbtn" data-logout title="Sign out"><svg class="i" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l-5-5 5-5M5 12h12"/></svg></button>
+    </div>
+  </aside>
+  <div class="maincol">
+    <header class="topbar">
+      <button class="iconbtn" id="backBtn" hidden title="Back"><svg class="i" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <div class="title" id="viewTitle">HitCore</div>
+      <div class="avatar brand-sm" id="topAvatar" title="Account"></div>
+    </header>
+    <main id="view"></main>
+  </div>
+  <nav class="tabs" id="tabs"></nav>
+</div>
+
+<dialog id="modal"><form method="dialog" id="modalForm"></form></dialog>
 <div id="toast" class="toast"></div>
 
 <script src="js/calc.js"></script>
+<script src="js/reports.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/store.js"></script>
 <script src="js/timer.js"></script>
 <script src="js/app.js"></script>

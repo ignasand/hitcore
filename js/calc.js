@@ -21,3 +21,5 @@ const IPSC = {
 };
 
 function fmt(n, d = 2) { return n == null || Number.isNaN(n) ? '—' : (+n).toFixed(d); }
+
+if (typeof module !== 'undefined') module.exports = { IPSC, fmt };

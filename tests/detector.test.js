@@ -1,11 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const fs = require('fs');
-const vm = require('vm');
-const { Detector, analyzeBeep } = require('../js/timer.js');
-const ctx = {}; vm.createContext(ctx);
-vm.runInContext(fs.readFileSync(__dirname + '/../js/calc.js', 'utf8') + ';this.IPSC=IPSC;', ctx);
-const IPSC = ctx.IPSC;
+const { Detector } = require('../js/timer.js');
+const { IPSC } = require('../js/calc.js');
 
 const SR = 48000;
 let seed = 1; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) * 2 - 1;
