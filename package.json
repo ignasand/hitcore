@@ -1,0 +1,9 @@
+{
+  "name": "hitcore",
+  "private": true,
+  "description": "IPSC hit factor calculator, microphone shot timer and training logger (PWA)",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "start": "python3 -m http.server 8080"
+  }
+}
