@@ -25,7 +25,7 @@ Open http://localhost:8080. The microphone needs `localhost` or HTTPS.
 
 ## Use on iPhone
 
-Host it on HTTPS, for example GitHub Pages (Settings → Pages → deploy from branch, root). Open it in Safari, then Share → *Add to Home Screen*. Allow microphone access when asked.
+Live at https://ignasand.github.io/hitcore/ (GitHub Pages, deployed from the branch root on every push). Open it in Safari, then Share → *Add to Home Screen*. Allow microphone access when asked.
 
 Tips: keep the phone 1–3 m from the shooter, learn the beep at the range, and turn the sensitivity down if shots from other bays are being counted.
 
